@@ -2744,7 +2744,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                     with urllib.request.urlopen(req, timeout=10):
                         pass
                 else:
-                    with open('/home/maxwell/opencode/feedback.jsonl', 'a', encoding='utf-8') as handle:
+                    feedback_path = os.environ.get('FEEDBACK_PATH', '/tmp/feedback.jsonl')
+                    feedback_dir = os.path.dirname(feedback_path)
+                    if feedback_dir:
+                        os.makedirs(feedback_dir, exist_ok=True)
+                    with open(feedback_path, 'a', encoding='utf-8') as handle:
                         handle.write(json.dumps(entry) + '\n')
 
                 self.send_response(200)

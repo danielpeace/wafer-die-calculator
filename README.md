@@ -45,10 +45,11 @@ python3 wafer_calculator.py
 ## Feedback (Slack/Discord)
 
 If `FEEDBACK_WEBHOOK_URL` is set, feedback submissions are sent to that webhook.
-Otherwise they are written to `feedback.jsonl` on disk.
+Otherwise they are written to `FEEDBACK_PATH` (default: `/tmp/feedback.jsonl`).
 
 Example for Render:
 - Add environment variable `FEEDBACK_WEBHOOK_URL` with your Slack/Discord webhook URL.
+- Optional: set `FEEDBACK_PATH` if you want file output on a writable path.
 
 Spam protection:
 - Basic rate limit: 10 submissions/minute per IP
