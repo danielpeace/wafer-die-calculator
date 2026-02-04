@@ -10,9 +10,11 @@ Algorithm: Centered grid placement with symmetry
 import math
 import os
 import struct
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import urllib.parse
+import urllib.request
 
 
 # SEMI standard wafer specifications
@@ -1475,6 +1477,10 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     <label for="feedbackMessage">Message</label>
                     <textarea id="feedbackMessage" placeholder="Describe the issue or improvement..."></textarea>
                 </div>
+                <div class="input-group" style="display: none;">
+                    <label for="feedbackWebsite">Website</label>
+                    <input type="text" id="feedbackWebsite" autocomplete="off">
+                </div>
                 <div class="input-group">
                     <label for="feedbackEmail">Email (optional)</label>
                     <input type="email" id="feedbackEmail" placeholder="you@example.com">
@@ -1582,6 +1588,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             const feedbackType = document.getElementById('feedbackType').value;
             const feedbackMessage = document.getElementById('feedbackMessage').value.trim();
             const feedbackEmail = document.getElementById('feedbackEmail').value.trim();
+            const feedbackWebsite = document.getElementById('feedbackWebsite').value.trim();
 
             if (!feedbackMessage) {
                 showToast('Feedback Required', 'Please enter a message.', 'warning');
@@ -1593,6 +1600,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     type: feedbackType,
                     message: feedbackMessage,
                     email: feedbackEmail,
+                    website: feedbackWebsite,
                     timestamp: new Date().toISOString(),
                     context: {
                         wafer: document.getElementById('wafer').value,
@@ -2562,6 +2570,19 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
 
 class RequestHandler(BaseHTTPRequestHandler):
+    rate_limit = {}
+
+    def _rate_limited(self):
+        ip = self.client_address[0]
+        now = int(time.time())
+        window = 60
+        limit = 10
+        record = self.rate_limit.get(ip, {'start': now, 'count': 0})
+        if now - record['start'] >= window:
+            record = {'start': now, 'count': 0}
+        record['count'] += 1
+        self.rate_limit[ip] = record
+        return record['count'] > limit
     def _read_json_body(self):
         content_length = int(self.headers.get('Content-Length', 0))
         if content_length <= 0:
@@ -2691,6 +2712,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if not payload or not payload.get('message'):
                     raise ValueError('Feedback message is required')
 
+                if payload.get('website'):
+                    raise ValueError('Invalid submission')
+
+                if self._rate_limited():
+                    raise ValueError('Rate limit exceeded')
+
                 entry = {
                     'type': payload.get('type', 'other'),
                     'message': payload.get('message', '').strip(),
@@ -2699,8 +2726,26 @@ class RequestHandler(BaseHTTPRequestHandler):
                     'context': payload.get('context', {}),
                 }
 
-                with open('/home/maxwell/opencode/feedback.jsonl', 'a', encoding='utf-8') as handle:
-                    handle.write(json.dumps(entry) + '\n')
+                webhook_url = os.environ.get('FEEDBACK_WEBHOOK_URL', '').strip()
+                if webhook_url:
+                    text = (
+                        f"Feedback ({entry['type']}):\n"
+                        f"{entry['message']}\n\n"
+                        f"Email: {entry['email'] or 'n/a'}\n"
+                        f"Context: {json.dumps(entry['context'])}"
+                    )
+                    data = json.dumps({'text': text}).encode('utf-8')
+                    req = urllib.request.Request(
+                        webhook_url,
+                        data=data,
+                        headers={'Content-Type': 'application/json'},
+                        method='POST',
+                    )
+                    with urllib.request.urlopen(req, timeout=10):
+                        pass
+                else:
+                    with open('/home/maxwell/opencode/feedback.jsonl', 'a', encoding='utf-8') as handle:
+                        handle.write(json.dumps(entry) + '\n')
 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')

@@ -41,3 +41,15 @@ python3 wafer_calculator.py
 ## Notes
 - Browser controls the save location for downloads. The filename box sets the download name.
 - GDS layer numbers/datatype can be edited in the Layer Visibility panel.
+
+## Feedback (Slack/Discord)
+
+If `FEEDBACK_WEBHOOK_URL` is set, feedback submissions are sent to that webhook.
+Otherwise they are written to `feedback.jsonl` on disk.
+
+Example for Render:
+- Add environment variable `FEEDBACK_WEBHOOK_URL` with your Slack/Discord webhook URL.
+
+Spam protection:
+- Basic rate limit: 10 submissions/minute per IP
+- Hidden honeypot field rejects bot submissions
