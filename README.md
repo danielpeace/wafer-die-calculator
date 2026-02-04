@@ -24,6 +24,13 @@ Open: http://localhost:5000
 python3 tests.py
 ```
 
+## Linting
+
+```bash
+python3 -m pip install ruff
+ruff check wafer_calculator.py
+```
+
 ## Deploy to Render
 
 This repo includes a `render.yaml` and respects `PORT`.

@@ -28,6 +28,13 @@ SEMI_STANDARDS = {
     '50mm': {'diameter': 50.8, 'flat_length': 15.9, 'edge_exclusion': 2.5},
 }
 
+MIN_WAFER_DIAMETER = 20.0
+MAX_WAFER_DIAMETER = 450.0
+MIN_DIE_SIZE = 0.1
+MAX_DIE_SIZE = 200.0
+MAX_SCRIBE = 5.0
+MAX_EDGE_EXCLUSION = 20.0
+
 
 def calculate_sagitta(radius, flat_length):
     """Calculate the sagitta (height of flat cut) from flat length.
@@ -1226,7 +1233,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     <div class="input-group">
                         <label for="standard_size">Standard Wafer Size (SEMI)</label>
                         <select id="standard_size" name="standard_size">
-                            <option value="">Custom</option>
                             <option value="300mm">300mm (12") - Notch</option>
                             <option value="200mm">200mm (8") - Notch</option>
                             <option value="150mm">150mm (6") - 47.5mm flat</option>
@@ -1234,26 +1240,27 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                             <option value="100mm" selected>100mm (4") - 32.5mm flat</option>
                             <option value="76mm">76mm (3") - 22.2mm flat</option>
                             <option value="50mm">50mm (2") - 15.9mm flat</option>
+                            <option value="">Custom</option>
                         </select>
                     </div>
                     <div class="input-row">
                         <div class="input-group">
                             <label for="wafer">Diameter (mm)</label>
-                            <input type="number" id="wafer" name="wafer" value="100" step="0.1" min="1">
+                            <input type="number" id="wafer" name="wafer" value="100" step="0.1" min="20" max="450">
                         </div>
                         <div class="input-group">
                             <label for="edge">Edge Excl. (mm)</label>
-                            <input type="number" id="edge" name="edge" value="3" step="0.1" min="0">
+                            <input type="number" id="edge" name="edge" value="3" step="0.1" min="0" max="20">
                         </div>
                     </div>
                     <div class="input-row">
                         <div class="input-group">
                             <label for="flat_length">Flat Length (mm)</label>
-                            <input type="number" id="flat_length" name="flat_length" value="32.5" step="0.1" min="0">
+                            <input type="number" id="flat_length" name="flat_length" value="32.5" step="0.1" min="0" max="450">
                         </div>
                         <div class="input-group">
                             <label for="notch_depth">Notch Depth (mm)</label>
-                            <input type="number" id="notch_depth" name="notch_depth" value="0" step="0.1" min="0">
+                            <input type="number" id="notch_depth" name="notch_depth" value="0" step="0.1" min="0" max="5">
                         </div>
                     </div>
                 </div>
@@ -1268,16 +1275,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     <div class="input-row">
                         <div class="input-group">
                             <label for="die_width">Width (mm)</label>
-                            <input type="number" id="die_width" name="die_width" value="10" step="0.1" min="0.1">
+                            <input type="number" id="die_width" name="die_width" value="10" step="0.1" min="0.1" max="200">
                         </div>
                         <div class="input-group">
                             <label for="die_height">Height (mm)</label>
-                            <input type="number" id="die_height" name="die_height" value="10" step="0.1" min="0.1">
+                            <input type="number" id="die_height" name="die_height" value="10" step="0.1" min="0.1" max="200">
                         </div>
                     </div>
                     <div class="input-group">
                         <label for="scribe">Scribe Line / Kerf (mm)</label>
-                        <input type="number" id="scribe" name="scribe" value="0.1" step="0.01" min="0">
+                            <input type="number" id="scribe" name="scribe" value="0.1" step="0.01" min="0" max="5">
                     </div>
                     <button type="button" class="toolbar-btn primary" id="calculateBtn" style="width: 100%; padding: 12px; margin-top: 8px;">
                         <span>▶</span> Calculate
@@ -2045,7 +2052,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             document.getElementById('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
         }
 
-        const MIN_ZOOM = 0.15;  // Cap at 150% of wafer diameter
+        const MIN_ZOOM = 0.5;  // Minimum 50% zoom
         const MAX_ZOOM = 10.0;  // Max 10x zoom
 
         function zoomIn() {
@@ -2613,6 +2620,16 @@ class RequestHandler(BaseHTTPRequestHandler):
 
                 if wafer_diameter <= 0 or die_width <= 0 or die_height <= 0:
                     raise ValueError("Dimensions must be positive")
+                if wafer_diameter < MIN_WAFER_DIAMETER or wafer_diameter > MAX_WAFER_DIAMETER:
+                    raise ValueError("Wafer diameter out of range")
+                if die_width < MIN_DIE_SIZE or die_width > MAX_DIE_SIZE:
+                    raise ValueError("Die width out of range")
+                if die_height < MIN_DIE_SIZE or die_height > MAX_DIE_SIZE:
+                    raise ValueError("Die height out of range")
+                if scribe < 0 or scribe > MAX_SCRIBE:
+                    raise ValueError("Scribe out of range")
+                if edge_exclusion < 0 or edge_exclusion > MAX_EDGE_EXCLUSION:
+                    raise ValueError("Edge exclusion out of range")
 
                 include_partial = params.get('include_partial', ['1'])[0] == '1'
                 align_x = params.get('align_x', ['0'])[0] == '1'
@@ -2657,6 +2674,16 @@ class RequestHandler(BaseHTTPRequestHandler):
 
                 if wafer_diameter <= 0 or die_width <= 0 or die_height <= 0:
                     raise ValueError("Dimensions must be positive")
+                if wafer_diameter < MIN_WAFER_DIAMETER or wafer_diameter > MAX_WAFER_DIAMETER:
+                    raise ValueError("Wafer diameter out of range")
+                if die_width < MIN_DIE_SIZE or die_width > MAX_DIE_SIZE:
+                    raise ValueError("Die width out of range")
+                if die_height < MIN_DIE_SIZE or die_height > MAX_DIE_SIZE:
+                    raise ValueError("Die height out of range")
+                if scribe < 0 or scribe > MAX_SCRIBE:
+                    raise ValueError("Scribe out of range")
+                if edge_exclusion < 0 or edge_exclusion > MAX_EDGE_EXCLUSION:
+                    raise ValueError("Edge exclusion out of range")
 
                 include_partial = params.get('include_partial', ['1'])[0] == '1'
                 align_x = params.get('align_x', ['0'])[0] == '1'
